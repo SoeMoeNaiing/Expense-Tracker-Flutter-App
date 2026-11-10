@@ -13,12 +13,30 @@ class MeshBackground extends StatefulWidget {
 class _MeshBackgroundState extends State<MeshBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 20))
-      ..repeat(reverse: true);
+    _c = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduce == _reduceMotion) return;
+    _reduceMotion = reduce;
+    if (_reduceMotion) {
+      // Kill the perpetual animation and freeze at the midpoint.
+      _c.stop();
+      _c.value = 0.5;
+    } else {
+      _c.repeat(reverse: true);
+    }
   }
 
   @override
@@ -29,7 +47,6 @@ class _MeshBackgroundState extends State<MeshBackground>
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
     return Stack(
       children: [
         Positioned.fill(
@@ -37,7 +54,7 @@ class _MeshBackgroundState extends State<MeshBackground>
             child: AnimatedBuilder(
               animation: _c,
               builder: (_, _) {
-                final t = reduceMotion
+                final t = _reduceMotion
                     ? 0.5
                     : Curves.easeInOut.transform(_c.value);
                 return CustomPaint(painter: _MeshPainter(t));
