@@ -12,6 +12,7 @@ import '../../../../core/widgets/mesh_background.dart';
 import '../../../categories/domain/entities/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../categories/presentation/screens/categories_screen.dart';
+import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../providers/expense_filter.dart';
 import '../providers/expense_providers.dart';
@@ -55,6 +56,19 @@ class ExpensesScreen extends ConsumerWidget {
                               child: Text('Ledger', style: text.headlineLarge),
                             ),
                             IconButton(
+                              key: const Key('reports_button'),
+                              icon: const Icon(
+                                Icons.insights,
+                                color: AppColors.textSecondary,
+                              ),
+                              tooltip: 'Reports',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ReportsScreen(),
+                                ),
+                              ),
+                            ),
+                            IconButton(
                               key: const Key('categories_button'),
                               icon: const Icon(
                                 Icons.tune,
@@ -62,7 +76,7 @@ class ExpensesScreen extends ConsumerWidget {
                               ),
                               tooltip: 'Categories',
                               onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute(
+                                MaterialPageRoute<void>(
                                   builder: (_) => const CategoriesScreen(),
                                 ),
                               ),

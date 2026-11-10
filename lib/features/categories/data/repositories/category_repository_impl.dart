@@ -4,7 +4,6 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/category.dart';
 import '../datasources/category_local_datasource.dart';
 import '../mappers/category_mapper.dart';
-import '../models/category_model.dart';
 
 class CategoryRepositoryImpl {
   final CategoryLocalDataSource _ds;

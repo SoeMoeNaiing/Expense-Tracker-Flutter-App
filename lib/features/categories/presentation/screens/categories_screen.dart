@@ -179,7 +179,7 @@ class _CategoryRow extends ConsumerWidget {
     if (result is Failure) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text((result as Failure).message),
+          content: Text(result.messageOrNull ?? 'Delete failed'),
           backgroundColor: AppColors.bgRaised,
           behavior: SnackBarBehavior.floating,
         ),
