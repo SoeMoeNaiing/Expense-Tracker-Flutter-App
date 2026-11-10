@@ -1,8 +1,7 @@
-/// Table and column name constants. Referenced by migrations, data
-/// sources, and tests — never write a raw string in a query.
 abstract final class Tables {
   static const categories = 'categories';
   static const expenses = 'expenses';
+  static const budgets = 'budgets';
 }
 
 abstract final class CategoryCols {
@@ -22,4 +21,11 @@ abstract final class ExpenseCols {
   static const occurredAt = 'occurred_at';
   static const createdAt = 'created_at';
   static const paymentMethod = 'payment_method';
+}
+
+abstract final class BudgetCols {
+  static const id = 'id';
+  static const categoryId = 'category_id';
+  static const amount = 'amount';
+  static const createdAt = 'created_at';
 }

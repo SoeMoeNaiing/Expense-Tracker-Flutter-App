@@ -3,19 +3,19 @@ import 'package:sqflite/sqflite.dart';
 import 'schema.dart';
 
 abstract final class Migrations {
-  static const int version = 2;
+  static const int version = 3;
 
   static Future<void> onCreate(Database db, int _) async {
     await v1(db);
     await v2(db);
+    await v3(db);
   }
 
   static Future<void> onUpgrade(Database db, int old, int _) async {
     if (old < 2) await v2(db);
-    // Future migrations append here: if (old < 3) await v3(db); ...
+    if (old < 3) await v3(db);
   }
 
-  /// Initial schema. Public so the migration test can seed a v1 database.
   static Future<void> v1(Database db) async {
     await db.execute('''
       CREATE TABLE ${Tables.categories} (
@@ -48,11 +48,30 @@ abstract final class Migrations {
     );
   }
 
-  /// Adds payment_method column with a safe default for existing rows.
   static Future<void> v2(Database db) async {
     await db.execute(
       'ALTER TABLE ${Tables.expenses} '
       "ADD COLUMN ${ExpenseCols.paymentMethod} TEXT NOT NULL DEFAULT 'cash'",
+    );
+  }
+
+  static Future<void> v3(Database db) async {
+    await db.execute('''
+      CREATE TABLE ${Tables.budgets} (
+        ${BudgetCols.id}         INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${BudgetCols.categoryId} INTEGER,
+        ${BudgetCols.amount}     INTEGER NOT NULL CHECK (${BudgetCols.amount} > 0),
+        ${BudgetCols.createdAt}  INTEGER NOT NULL,
+        FOREIGN KEY (${BudgetCols.categoryId})
+          REFERENCES ${Tables.categories} (${CategoryCols.id})
+          ON DELETE CASCADE
+      )
+    ''');
+    // One budget per category, plus one overall (NULL category) — the
+    // COALESCE expression maps NULL to 0 for uniqueness enforcement.
+    await db.execute(
+      'CREATE UNIQUE INDEX uq_budgets_all ON ${Tables.budgets} '
+      '(COALESCE(${BudgetCols.categoryId}, 0))',
     );
   }
 }

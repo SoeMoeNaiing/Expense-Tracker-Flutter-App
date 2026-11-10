@@ -8,7 +8,7 @@ void main() {
     test('opens with schema version 1', () async {
       final appDb = await openTestDb();
       final rows = await appDb.db.rawQuery('PRAGMA user_version');
-      expect(rows.first.values.first, 2);
+      expect(rows.first.values.first, 3);
       await appDb.close();
     });
 
