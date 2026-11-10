@@ -20,4 +20,10 @@ class CategoryLocalDataSource {
 
   Future<int> insert(CategoryModel m) =>
       _db.insert(Tables.categories, m.toMap());
+
+  Future<int> delete(int id) => _db.delete(
+    Tables.categories,
+    where: '${CategoryCols.id} = ?',
+    whereArgs: [id],
+  );
 }

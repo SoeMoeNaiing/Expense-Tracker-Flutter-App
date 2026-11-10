@@ -1,4 +1,5 @@
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/payment_method.dart';
 import '../models/expense_model.dart';
 
 abstract final class ExpenseMapper {
@@ -9,6 +10,7 @@ abstract final class ExpenseMapper {
     note: m.note,
     occurredAt: DateTime.fromMillisecondsSinceEpoch(m.occurredAtMs),
     createdAt: DateTime.fromMillisecondsSinceEpoch(m.createdAtMs),
+    paymentMethod: PaymentMethod.fromDb(m.paymentMethod),
   );
 
   static ExpenseModel toModel(Expense e) => ExpenseModel(
@@ -18,5 +20,6 @@ abstract final class ExpenseMapper {
     note: e.note,
     occurredAtMs: e.occurredAt.millisecondsSinceEpoch,
     createdAtMs: e.createdAt.millisecondsSinceEpoch,
+    paymentMethod: e.paymentMethod.dbValue,
   );
 }

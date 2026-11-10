@@ -1,5 +1,5 @@
-/// Immutable expense entity. `id == null` means the expense has not yet
-/// been persisted (a "draft"). `amount` is whole Myanmar Kyat.
+import 'payment_method.dart';
+
 class Expense {
   final int? id;
   final int amount;
@@ -7,6 +7,7 @@ class Expense {
   final String? note;
   final DateTime occurredAt;
   final DateTime createdAt;
+  final PaymentMethod paymentMethod;
 
   const Expense({
     this.id,
@@ -15,31 +16,29 @@ class Expense {
     this.note,
     required this.occurredAt,
     required this.createdAt,
+    this.paymentMethod = PaymentMethod.cash,
   });
 
-  /// Builds a not-yet-persisted expense. `createdAt` defaults to now.
-  /// `occurredAt` defaults to now so back-dating is optional.
   factory Expense.draft({
     required int amount,
     required int categoryId,
     String? note,
     DateTime? occurredAt,
+    PaymentMethod paymentMethod = PaymentMethod.cash,
   }) {
     final now = DateTime.now();
     return Expense(
-      id: null,
       amount: amount,
       categoryId: categoryId,
       note: note,
       occurredAt: occurredAt ?? now,
       createdAt: now,
+      paymentMethod: paymentMethod,
     );
   }
 
   bool get isPersisted => id != null;
 
-  /// Returns a copy with the persisted id assigned. Only used by the
-  /// repository immediately after insert.
   Expense withId(int newId) => Expense(
     id: newId,
     amount: amount,
@@ -47,6 +46,7 @@ class Expense {
     note: note,
     occurredAt: occurredAt,
     createdAt: createdAt,
+    paymentMethod: paymentMethod,
   );
 
   @override
@@ -57,14 +57,22 @@ class Expense {
       other.categoryId == categoryId &&
       other.note == note &&
       other.occurredAt == occurredAt &&
-      other.createdAt == createdAt;
+      other.createdAt == createdAt &&
+      other.paymentMethod == paymentMethod;
 
   @override
-  int get hashCode =>
-      Object.hash(id, amount, categoryId, note, occurredAt, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    amount,
+    categoryId,
+    note,
+    occurredAt,
+    createdAt,
+    paymentMethod,
+  );
 
   @override
   String toString() =>
       'Expense(id: $id, amount: $amount, categoryId: $categoryId, '
-      'note: $note, occurredAt: $occurredAt)';
+      'note: $note, pm: ${paymentMethod.dbValue})';
 }

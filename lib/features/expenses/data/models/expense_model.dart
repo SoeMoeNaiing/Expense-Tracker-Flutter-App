@@ -1,6 +1,5 @@
 import '../../../../core/database/schema.dart';
 
-/// Mirrors the `expenses` table row exactly. Timestamps are epoch millis.
 class ExpenseModel {
   final int? id;
   final int amount;
@@ -8,6 +7,7 @@ class ExpenseModel {
   final String? note;
   final int occurredAtMs;
   final int createdAtMs;
+  final String paymentMethod;
 
   const ExpenseModel({
     this.id,
@@ -16,6 +16,7 @@ class ExpenseModel {
     this.note,
     required this.occurredAtMs,
     required this.createdAtMs,
+    this.paymentMethod = 'cash',
   });
 
   Map<String, Object?> toMap() => {
@@ -25,14 +26,16 @@ class ExpenseModel {
     ExpenseCols.note: note,
     ExpenseCols.occurredAt: occurredAtMs,
     ExpenseCols.createdAt: createdAtMs,
+    ExpenseCols.paymentMethod: paymentMethod,
   };
 
-  factory ExpenseModel.fromMap(Map<String, Object?> map) => ExpenseModel(
-    id: map[ExpenseCols.id] as int?,
-    amount: map[ExpenseCols.amount] as int,
-    categoryId: map[ExpenseCols.categoryId] as int,
-    note: map[ExpenseCols.note] as String?,
-    occurredAtMs: map[ExpenseCols.occurredAt] as int,
-    createdAtMs: map[ExpenseCols.createdAt] as int,
+  factory ExpenseModel.fromMap(Map<String, Object?> m) => ExpenseModel(
+    id: m[ExpenseCols.id] as int?,
+    amount: m[ExpenseCols.amount] as int,
+    categoryId: m[ExpenseCols.categoryId] as int,
+    note: m[ExpenseCols.note] as String?,
+    occurredAtMs: m[ExpenseCols.occurredAt] as int,
+    createdAtMs: m[ExpenseCols.createdAt] as int,
+    paymentMethod: (m[ExpenseCols.paymentMethod] as String?) ?? 'cash',
   );
 }

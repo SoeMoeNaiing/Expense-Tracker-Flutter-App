@@ -3,9 +3,20 @@ import 'package:sqflite/sqflite.dart';
 import 'schema.dart';
 
 abstract final class Migrations {
-  static const int version = 1;
+  static const int version = 2;
 
-  static Future<void> onCreate(Database db, int version) async {
+  static Future<void> onCreate(Database db, int _) async {
+    await v1(db);
+    await v2(db);
+  }
+
+  static Future<void> onUpgrade(Database db, int old, int _) async {
+    if (old < 2) await v2(db);
+    // Future migrations append here: if (old < 3) await v3(db); ...
+  }
+
+  /// Initial schema. Public so the migration test can seed a v1 database.
+  static Future<void> v1(Database db) async {
     await db.execute('''
       CREATE TABLE ${Tables.categories} (
         ${CategoryCols.id}        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,7 +27,6 @@ abstract final class Migrations {
         ${CategoryCols.createdAt} INTEGER NOT NULL
       )
     ''');
-
     await db.execute('''
       CREATE TABLE ${Tables.expenses} (
         ${ExpenseCols.id}         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +40,6 @@ abstract final class Migrations {
           ON DELETE RESTRICT
       )
     ''');
-
     await db.execute(
       'CREATE INDEX idx_expenses_occurred ON ${Tables.expenses} (${ExpenseCols.occurredAt})',
     );
@@ -39,12 +48,11 @@ abstract final class Migrations {
     );
   }
 
-  static Future<void> onUpgrade(
-    Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
-    // v1 is the initial schema — no upgrades yet.
-    // Future migrations append `if (oldVersion < N) { ... }` blocks here.
+  /// Adds payment_method column with a safe default for existing rows.
+  static Future<void> v2(Database db) async {
+    await db.execute(
+      'ALTER TABLE ${Tables.expenses} '
+      "ADD COLUMN ${ExpenseCols.paymentMethod} TEXT NOT NULL DEFAULT 'cash'",
+    );
   }
 }

@@ -9,8 +9,11 @@ import '../../../../core/theme/app_radii.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/animated_counter.dart';
 import '../../../../core/widgets/mesh_background.dart';
+import '../../../categories/domain/entities/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../categories/presentation/screens/categories_screen.dart';
 import '../../domain/entities/expense.dart';
+import '../providers/expense_filter.dart';
 import '../providers/expense_providers.dart';
 import '../widgets/add_expense_sheet.dart';
 import '../widgets/expense_card.dart';
@@ -21,8 +24,11 @@ class ExpensesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
-    final expensesAsync = ref.watch(expensesProvider);
+    final expensesAsync = ref.watch(filteredExpensesProvider);
     final total = ref.watch(monthTotalProvider);
+    final filter = ref.watch(expenseFilterProvider);
+    final categories =
+        ref.watch(categoriesProvider).value ?? const <Category>[];
     final monthLabel = DateFormat.yMMMM().format(DateTime.now());
 
     return MeshBackground(
@@ -39,14 +45,32 @@ class ExpensesScreen extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Ledger', style: text.headlineLarge),
-                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('Ledger', style: text.headlineLarge),
+                            ),
+                            IconButton(
+                              key: const Key('categories_button'),
+                              icon: const Icon(
+                                Icons.tune,
+                                color: AppColors.textSecondary,
+                              ),
+                              tooltip: 'Categories',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const CategoriesScreen(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         Text(monthLabel, style: text.labelSmall),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
                         Text(
                           'Spent this month',
                           style: text.bodyMedium?.copyWith(
@@ -65,9 +89,47 @@ class ExpensesScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        Text('Recent', style: text.headlineMedium),
+                        const SizedBox(height: 20),
+                        _SearchField(
+                          value: filter.searchQuery,
+                          onChanged: (q) => ref
+                              .read(expenseFilterProvider.notifier)
+                              .setSearch(q),
+                          onClear: () {
+                            ref
+                                .read(expenseFilterProvider.notifier)
+                                .setSearch('');
+                          },
+                        ),
                         const SizedBox(height: 12),
+                        SizedBox(
+                          height: 40,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _Chip(
+                                label: 'All',
+                                selected: filter.categoryId == null,
+                                accent: AppColors.primary,
+                                onTap: () => ref
+                                    .read(expenseFilterProvider.notifier)
+                                    .setCategory(null),
+                              ),
+                              for (final c in categories) ...[
+                                const SizedBox(width: 8),
+                                _Chip(
+                                  label: c.name,
+                                  selected: filter.categoryId == c.id,
+                                  accent: c.color,
+                                  onTap: () => ref
+                                      .read(expenseFilterProvider.notifier)
+                                      .setCategory(c.id),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
@@ -91,9 +153,9 @@ class ExpensesScreen extends ConsumerWidget {
                     child: _ErrorState(message: e.toString()),
                   ),
                   data: (expenses) => expenses.isEmpty
-                      ? const SliverFillRemaining(
+                      ? SliverFillRemaining(
                           hasScrollBody: false,
-                          child: _EmptyState(),
+                          child: _EmptyState(filtered: filter.isActive),
                         )
                       : SliverPadding(
                           padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
@@ -168,6 +230,90 @@ class ExpensesScreen extends ConsumerWidget {
   }
 }
 
+class _SearchField extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchField({
+    required this.value,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      key: const Key('search_field'),
+      onChanged: onChanged,
+      style: Theme.of(context).textTheme.bodyLarge,
+      decoration: InputDecoration(
+        hintText: 'Search notes, categories',
+        prefixIcon: const Icon(
+          Icons.search,
+          color: AppColors.textTertiary,
+          size: 20,
+        ),
+        suffixIcon: value.isNotEmpty
+            ? IconButton(
+                icon: const Icon(
+                  Icons.close,
+                  color: AppColors.textSecondary,
+                  size: 18,
+                ),
+                onPressed: onClear,
+              )
+            : null,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? accent.withAlpha(38) : AppColors.bgElevated,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          border: Border.all(
+            color: selected ? accent : AppColors.borderSubtle,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: text.labelLarge?.copyWith(
+            fontSize: 13,
+            color: selected ? accent : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Fab extends StatelessWidget {
   final VoidCallback onTap;
   const _Fab({required this.onTap});
@@ -219,7 +365,7 @@ class _StaggeredItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stagger = Duration(milliseconds: 40 * index);
+    final stagger = Duration(milliseconds: 40 * (index > 8 ? 8 : index));
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: AppMotion.medium + stagger,
@@ -234,7 +380,8 @@ class _StaggeredItem extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final bool filtered;
+  const _EmptyState({required this.filtered});
 
   @override
   Widget build(BuildContext context) {
@@ -260,8 +407,8 @@ class _EmptyState extends StatelessWidget {
                     color: AppColors.primary.withAlpha(38),
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
-                  child: const Icon(
-                    Icons.receipt_long,
+                  child: Icon(
+                    filtered ? Icons.search_off : Icons.receipt_long,
                     color: AppColors.primary,
                   ),
                 ),
@@ -270,10 +417,15 @@ class _EmptyState extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('No expenses yet', style: text.bodyLarge),
+                      Text(
+                        filtered ? 'No matches' : 'No expenses yet',
+                        style: text.bodyLarge,
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        'Tap + to log your first expense',
+                        filtered
+                            ? 'Try clearing the search or filter'
+                            : 'Tap + to log your first expense',
                         style: text.labelSmall,
                       ),
                     ],

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di.dart';
 import '../../../../core/utils/result.dart';
+import '../../../categories/presentation/providers/category_providers.dart';
 import '../../data/datasources/expense_local_datasource.dart';
 import '../../data/repositories/expense_repository_impl.dart';
 import '../../domain/entities/expense.dart';
@@ -10,6 +11,7 @@ import '../../domain/usecases/add_expense.dart';
 import '../../domain/usecases/delete_expense.dart';
 import '../../domain/usecases/get_expenses.dart';
 import '../../domain/usecases/update_expense.dart';
+import 'expense_filter.dart';
 
 final expenseDataSourceProvider = Provider<ExpenseLocalDataSource>(
   (ref) => ExpenseLocalDataSource(ref.watch(appDatabaseProvider)),
@@ -67,9 +69,17 @@ final expensesProvider = AsyncNotifierProvider<ExpensesNotifier, List<Expense>>(
   ExpensesNotifier.new,
 );
 
-/// Derived: total spent for current month. Recomputed on state change.
+final filteredExpensesProvider = Provider<AsyncValue<List<Expense>>>((ref) {
+  final expenses = ref.watch(expensesProvider);
+  final filter = ref.watch(expenseFilterProvider);
+  final names = ref.watch(categoryNameMapProvider);
+  return expenses.whenData((list) => filter.apply(list, names));
+});
+
+/// Derived: total spent for current month, from the *filtered* list.
 final monthTotalProvider = Provider<int>((ref) {
-  final expenses = ref.watch(expensesProvider).value ?? const <Expense>[];
+  final expenses =
+      ref.watch(filteredExpensesProvider).value ?? const <Expense>[];
   final now = DateTime.now();
   return expenses
       .where(

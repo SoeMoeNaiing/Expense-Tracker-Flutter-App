@@ -21,4 +21,5 @@ abstract final class ExpenseCols {
   static const note = 'note';
   static const occurredAt = 'occurred_at';
   static const createdAt = 'created_at';
+  static const paymentMethod = 'payment_method';
 }

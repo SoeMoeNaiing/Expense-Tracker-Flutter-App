@@ -1,3 +1,5 @@
+import 'package:expense_tracker/features/categories/domain/entities/category.dart';
+import 'package:expense_tracker/features/categories/presentation/providers/category_providers.dart';
 import 'package:expense_tracker/features/expenses/domain/entities/expense.dart';
 import 'package:expense_tracker/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:expense_tracker/features/expenses/presentation/screens/expenses_screen.dart';
@@ -5,13 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Fake notifier: resolves instantly, no DB, no timers.
 class _FakeExpensesNotifier extends ExpensesNotifier {
   _FakeExpensesNotifier(this.initial);
   final List<Expense> initial;
-
   @override
   Future<List<Expense>> build() async => initial;
+}
+
+class _FakeCategoriesNotifier extends CategoriesNotifier {
+  _FakeCategoriesNotifier(this.initial);
+  final List<Category> initial;
+  @override
+  Future<List<Category>> build() async => initial;
 }
 
 Future<void> _pump(WidgetTester tester, List<Expense> expenses) async {
@@ -19,6 +26,9 @@ Future<void> _pump(WidgetTester tester, List<Expense> expenses) async {
     ProviderScope(
       overrides: [
         expensesProvider.overrideWith(() => _FakeExpensesNotifier(expenses)),
+        categoriesProvider.overrideWith(
+          () => _FakeCategoriesNotifier(const []),
+        ),
       ],
       child: const MediaQuery(
         data: MediaQueryData(disableAnimations: true),
