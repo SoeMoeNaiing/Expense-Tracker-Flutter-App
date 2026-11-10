@@ -1,5 +1,5 @@
 import '../../../../core/utils/result.dart';
-import '../../../categories/data/repositories/category_repository_impl.dart';
+import '../../../categories/domain/repositories/category_repository.dart';
 import '../../../categories/domain/entities/category.dart';
 import '../../data/csv/csv_codec.dart';
 import '../entities/expense.dart';
@@ -7,7 +7,7 @@ import '../repositories/expense_repository.dart';
 
 class ExportExpensesCsv {
   final ExpenseRepository _expenseRepo;
-  final CategoryRepositoryImpl _categoryRepo;
+  final CategoryRepository _categoryRepo;
 
   const ExportExpensesCsv(this._expenseRepo, this._categoryRepo);
 

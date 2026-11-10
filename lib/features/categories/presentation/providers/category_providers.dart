@@ -5,6 +5,7 @@ import '../../../../core/utils/result.dart';
 import '../../data/datasources/category_local_datasource.dart';
 import '../../data/repositories/category_repository_impl.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/repositories/category_repository.dart';
 import '../../domain/usecases/add_category.dart';
 import '../../domain/usecases/delete_category.dart';
 
@@ -12,7 +13,7 @@ final categoryDataSourceProvider = Provider<CategoryLocalDataSource>(
   (ref) => CategoryLocalDataSource(ref.watch(appDatabaseProvider)),
 );
 
-final categoryRepositoryProvider = Provider<CategoryRepositoryImpl>(
+final categoryRepositoryProvider = Provider<CategoryRepository>(
   (ref) => CategoryRepositoryImpl(ref.watch(categoryDataSourceProvider)),
 );
 

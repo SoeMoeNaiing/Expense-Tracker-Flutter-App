@@ -1,8 +1,8 @@
 import '../../../../core/utils/result.dart';
-import '../../data/repositories/category_repository_impl.dart';
+import '../repositories/category_repository.dart';
 
 class DeleteCategory {
-  final CategoryRepositoryImpl _repo;
+  final CategoryRepository _repo;
   const DeleteCategory(this._repo);
 
   Future<Result<void>> call({required int id, required bool isDefault}) async {

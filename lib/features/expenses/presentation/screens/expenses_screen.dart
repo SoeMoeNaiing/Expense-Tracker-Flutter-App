@@ -12,13 +12,14 @@ import '../../../../core/theme/app_radii.dart';
 import '../../../../core/utils/money.dart';
 import '../../../../core/widgets/animated_counter.dart';
 import '../../../../core/widgets/mesh_background.dart';
-import '../../../categories/domain/entities/category.dart';
-import '../../../categories/presentation/providers/category_providers.dart';
-import '../../../categories/presentation/screens/categories_screen.dart';
 import '../../../budgets/presentation/providers/budget_providers.dart';
 import '../../../budgets/presentation/screens/budgets_screen.dart';
 import '../../../budgets/presentation/widgets/overall_budget_bar.dart';
+import '../../../categories/domain/entities/category.dart';
+import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../categories/presentation/screens/categories_screen.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
+import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../providers/expense_filter.dart';
 import '../providers/expense_providers.dart';
@@ -37,6 +38,7 @@ class ExpensesScreen extends ConsumerWidget {
     final categories =
         ref.watch(categoriesProvider).value ?? const <Category>[];
     final monthLabel = DateFormat.yMMMM().format(DateTime.now());
+    final overallProgress = ref.watch(overallBudgetProgressProvider);
 
     return MeshBackground(
       child: Scaffold(
@@ -100,6 +102,19 @@ class ExpensesScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                            IconButton(
+                              key: const Key('settings_button'),
+                              icon: const Icon(
+                                Icons.settings_outlined,
+                                color: AppColors.textSecondary,
+                              ),
+                              tooltip: 'Settings',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const SettingsScreen(),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                         Text(monthLabel, style: text.labelSmall),
@@ -122,6 +137,10 @@ class ExpensesScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (overallProgress != null) ...[
+                          const SizedBox(height: 16),
+                          OverallBudgetBar(progress: overallProgress),
+                        ],
                         const SizedBox(height: 20),
                         _SearchField(
                           value: filter.searchQuery,
@@ -234,7 +253,6 @@ class ExpensesScreen extends ConsumerWidget {
               index: index,
               onTap: () => _confirmDelete(context, ref, expense),
             ),
-            _ => const SizedBox.shrink(),
           };
         },
       ),
@@ -331,10 +349,12 @@ class _SwipeableExpense extends ConsumerWidget {
 
   Future<void> _handleDismiss(BuildContext context, WidgetRef ref) async {
     if (expense.id == null) return;
+
     final notifier = ref.read(expensesProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+
     notifier.removeLocally(expense.id!);
 
-    final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
     final controller = messenger.showSnackBar(
       SnackBar(
@@ -355,7 +375,7 @@ class _SwipeableExpense extends ConsumerWidget {
 
     final reason = await controller.closed;
     if (reason == SnackBarClosedReason.action) return;
-    await notifier.deletePermanently(expense.id!);
+    unawaited(notifier.deletePermanently(expense.id!));
   }
 }
 
@@ -423,7 +443,7 @@ class _FabState extends State<_Fab> {
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
       onTap: () {
-        HapticFeedback.lightImpact();
+        unawaited(HapticFeedback.lightImpact());
         widget.onTap();
       },
       child: AnimatedScale(

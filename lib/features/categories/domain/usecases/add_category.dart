@@ -1,9 +1,9 @@
 import '../../../../core/utils/result.dart';
 import '../entities/category.dart';
-import '../../data/repositories/category_repository_impl.dart';
+import '../repositories/category_repository.dart';
 
 class AddCategory {
-  final CategoryRepositoryImpl _repo;
+  final CategoryRepository _repo;
   const AddCategory(this._repo);
 
   Future<Result<Category>> call({
