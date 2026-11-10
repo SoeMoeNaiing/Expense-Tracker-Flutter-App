@@ -63,6 +63,31 @@ class ExpensesNotifier extends AsyncNotifier<List<Expense>> {
     }
     return result;
   }
+
+  /// Removes an item from the UI immediately, without touching the DB.
+  /// Returns the removed expense so the caller can offer undo.
+  Expense? removeLocally(int id) {
+    final current = state.value ?? const <Expense>[];
+    final idx = current.indexWhere((e) => e.id == id);
+    if (idx < 0) return null;
+    final removed = current[idx];
+    state = AsyncValue.data([...current]..removeAt(idx));
+    return removed;
+  }
+
+  /// Re-adds an item to the UI, preserving sort order (newest first).
+  void reinsertLocally(Expense e) {
+    final current = state.value ?? const <Expense>[];
+    final next = [...current, e]
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    state = AsyncValue.data(next);
+  }
+
+  /// Commits the deletion to the database. Called after the undo window
+  /// expires (no snackbar action taken). The item is already gone from
+  /// state via [removeLocally].
+  Future<Result<void>> deletePermanently(int id) =>
+      ref.read(deleteExpenseProvider)(id);
 }
 
 final expensesProvider = AsyncNotifierProvider<ExpensesNotifier, List<Expense>>(

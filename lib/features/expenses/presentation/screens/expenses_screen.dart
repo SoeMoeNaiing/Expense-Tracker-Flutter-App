@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -171,35 +174,7 @@ class ExpensesScreen extends ConsumerWidget {
                           hasScrollBody: false,
                           child: _EmptyState(filtered: filter.isActive),
                         )
-                      : SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                          sliver: SliverList.builder(
-                            itemCount: expenses.length,
-                            itemBuilder: (context, i) {
-                              final e = expenses[i];
-                              final category = ref.watch(
-                                categoryByIdProvider(e.categoryId),
-                              );
-                              return Padding(
-                                key: ValueKey(e.id),
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _StaggeredItem(
-                                  index: i,
-                                  child: ExpenseCard(
-                                    expense: e,
-                                    category: category,
-                                    onTap: () => _confirmDelete(
-                                      context,
-                                      ref,
-                                      e,
-                                      category?.name,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                      : _buildExpenseList(context, ref, expenses),
                 ),
               ],
             ),
@@ -209,19 +184,60 @@ class ExpensesScreen extends ConsumerWidget {
     );
   }
 
+  SliverPadding _buildExpenseList(
+    BuildContext context,
+    WidgetRef ref,
+    List<Expense> expenses,
+  ) {
+    final items = <_ListItem>[];
+    String? lastLabel;
+    var stagger = 0;
+    for (final e in expenses) {
+      final label = DateFormat.yMMMMEEEEd().format(e.occurredAt);
+      if (label != lastLabel) {
+        items.add(_HeaderItem(label));
+        lastLabel = label;
+      }
+      items.add(_ExpenseItem(e, stagger++));
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+      sliver: SliverList.builder(
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final item = items[i];
+          return switch (item) {
+            _HeaderItem(:final label) => _DateHeader(
+              key: ValueKey('h-$label'),
+              label: label,
+            ),
+            _ExpenseItem(:final expense, :final index) => _SwipeableExpense(
+              key: ValueKey('e-${expense.id}'),
+              expense: expense,
+              index: index,
+              onTap: () => _confirmDelete(context, ref, expense),
+            ),
+            _ => const SizedBox.shrink(),
+          };
+        },
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
     Expense expense,
-    String? categoryName,
   ) async {
+    final category = ref.read(categoryByIdProvider(expense.categoryId));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.bgRaised,
         title: const Text('Delete expense?'),
         content: Text(
-          '${categoryName ?? 'Expense'} · ${Money(expense.amount).format()}',
+          '${category?.name ?? 'Expense'} · ${Money(expense.amount).format()}',
         ),
         actions: [
           TextButton(
@@ -244,7 +260,196 @@ class ExpensesScreen extends ConsumerWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
+sealed class _ListItem {
+  const _ListItem();
+}
+
+class _HeaderItem extends _ListItem {
+  final String label;
+  const _HeaderItem(this.label);
+}
+
+class _ExpenseItem extends _ListItem {
+  final Expense expense;
+  final int index;
+  const _ExpenseItem(this.expense, this.index);
+}
+
+class _SwipeableExpense extends ConsumerWidget {
+  final Expense expense;
+  final int index;
+  final VoidCallback onTap;
+
+  const _SwipeableExpense({
+    super.key,
+    required this.expense,
+    required this.index,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final category = ref.watch(categoryByIdProvider(expense.categoryId));
+    return Dismissible(
+      key: ValueKey('dismiss-${expense.id}'),
+      direction: DismissDirection.endToStart,
+      background: const _SwipeBackground(),
+      confirmDismiss: (_) async {
+        unawaited(HapticFeedback.mediumImpact());
+        return true;
+      },
+      onDismissed: (_) => _handleDismiss(context, ref),
+      child: _StaggeredItem(
+        index: index,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: ExpenseCard(
+            expense: expense,
+            category: category,
+            onTap: onTap,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDismiss(BuildContext context, WidgetRef ref) async {
+    if (expense.id == null) return;
+    final notifier = ref.read(expensesProvider.notifier);
+    notifier.removeLocally(expense.id!);
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        content: Text('${Money(expense.amount).format()} deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: AppColors.primary,
+          onPressed: () => notifier.reinsertLocally(expense),
+        ),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.bgRaised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
+      ),
+    );
+
+    final reason = await controller.closed;
+    if (reason == SnackBarClosedReason.action) return;
+    await notifier.deletePermanently(expense.id!);
+  }
+}
+
+class _SwipeBackground extends StatelessWidget {
+  const _SwipeBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            AppColors.coral.withAlpha(80),
+            AppColors.coral.withAlpha(200),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+    );
+  }
+}
+
+class _DateHeader extends StatelessWidget {
+  final String label;
+  const _DateHeader({super.key, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+      child: Text(
+        label,
+        style: text.labelSmall?.copyWith(
+          color: AppColors.textSecondary,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+  }
+}
+
+class _Fab extends StatefulWidget {
+  final VoidCallback onTap;
+  const _Fab({required this.onTap});
+
+  @override
+  State<_Fab> createState() => _FabState();
+}
+
+class _FabState extends State<_Fab> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: AppGradients.fab,
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withAlpha(_pressed ? 40 : 85),
+                blurRadius: _pressed ? 16 : 24,
+                offset: Offset(0, _pressed ? 4 : 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Add expense',
+                    style: text.labelLarge?.copyWith(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
@@ -256,10 +461,41 @@ class _SearchField extends StatelessWidget {
   });
 
   @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(_SearchField old) {
+    super.didUpdateWidget(old);
+    if (widget.value != _ctrl.text) {
+      _ctrl.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
       key: const Key('search_field'),
-      onChanged: onChanged,
+      controller: _ctrl,
+      onChanged: widget.onChanged,
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         hintText: 'Search notes, categories',
@@ -268,14 +504,14 @@ class _SearchField extends StatelessWidget {
           color: AppColors.textTertiary,
           size: 20,
         ),
-        suffixIcon: value.isNotEmpty
+        suffixIcon: widget.value.isNotEmpty
             ? IconButton(
                 icon: const Icon(
                   Icons.close,
                   color: AppColors.textSecondary,
                   size: 18,
                 ),
-                onPressed: onClear,
+                onPressed: widget.onClear,
               )
             : null,
         contentPadding: const EdgeInsets.symmetric(
@@ -321,50 +557,6 @@ class _Chip extends StatelessWidget {
           style: text.labelLarge?.copyWith(
             fontSize: 13,
             color: selected ? accent : AppColors.textPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Fab extends StatelessWidget {
-  final VoidCallback onTap;
-  const _Fab({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: AppGradients.fab,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withAlpha(85),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.add, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Add expense',
-                  style: text.labelLarge?.copyWith(color: Colors.white),
-                ),
-              ],
-            ),
           ),
         ),
       ),

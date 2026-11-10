@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,6 +91,7 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
     setState(() => _saving = false);
     switch (result) {
       case Success():
+        unawaited(HapticFeedback.lightImpact());
         Navigator.of(context).pop(true);
       case Failure(:final message):
         _snack(message);
