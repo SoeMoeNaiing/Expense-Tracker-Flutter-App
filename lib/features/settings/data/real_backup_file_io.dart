@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -9,6 +9,12 @@ import 'backup_file_io.dart';
 
 class RealBackupFileIO implements BackupFileIO {
   const RealBackupFileIO();
+
+  static const _csvGroup = XTypeGroup(
+    label: 'CSV',
+    extensions: ['csv'],
+    mimeTypes: ['text/csv'],
+  );
 
   @override
   Future<Result<void>> saveAndShareCsv(
@@ -22,7 +28,7 @@ class RealBackupFileIO implements BackupFileIO {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'text/csv')],
-          subject: 'Ledger CSV export',
+          subject: 'Zay CSV export',
         ),
       );
       return const Success(null);
@@ -34,18 +40,9 @@ class RealBackupFileIO implements BackupFileIO {
   @override
   Future<Result<String?>> pickCsv() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-      );
-      if (result == null || result.files.isEmpty) {
-        return const Success(null);
-      }
-      final path = result.files.single.path;
-      if (path == null) {
-        return const Failure('Could not read the selected file');
-      }
-      final content = await File(path).readAsString();
+      final file = await openFile(acceptedTypeGroups: [_csvGroup]);
+      if (file == null) return const Success(null);
+      final content = await file.readAsString();
       return Success(content);
     } catch (e) {
       return Failure('Failed to read file', error: e);

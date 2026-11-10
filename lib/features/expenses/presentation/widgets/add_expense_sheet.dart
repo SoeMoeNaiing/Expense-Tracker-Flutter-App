@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,11 +6,11 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_radii.dart';
+// import '../../../../core/utils/money.dart';
 import '../../../../core/utils/result.dart';
 import '../../../categories/domain/entities/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../domain/entities/expense.dart';
-import '../../domain/entities/payment_method.dart';
 import '../providers/expense_providers.dart';
 
 class AddExpenseSheet extends ConsumerStatefulWidget {
@@ -39,7 +37,6 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   final _noteCtrl = TextEditingController();
   DateTime _occurredAt = DateTime.now();
   int? _categoryId;
-  PaymentMethod _paymentMethod = PaymentMethod.cash;
   bool _saving = false;
 
   @override
@@ -75,23 +72,26 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
 
   Future<void> _save() async {
     final catId = _categoryId;
-    if (catId == null) return _snack('Pick a category');
-    if (_amountValue <= 0) return _snack('Enter an amount');
-
+    if (catId == null) {
+      _snack('Pick a category');
+      return;
+    }
+    if (_amountValue <= 0) {
+      _snack('Enter an amount');
+      return;
+    }
     setState(() => _saving = true);
     final draft = Expense.draft(
       amount: _amountValue,
       categoryId: catId,
       note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
       occurredAt: _occurredAt,
-      paymentMethod: _paymentMethod,
     );
     final result = await ref.read(expensesProvider.notifier).add(draft);
     if (!mounted) return;
     setState(() => _saving = false);
     switch (result) {
       case Success():
-        unawaited(HapticFeedback.lightImpact());
         Navigator.of(context).pop(true);
       case Failure(:final message):
         _snack(message);
@@ -188,32 +188,15 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
                   separatorBuilder: (_, _) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     final c = list[i];
+                    final selected = c.id == _categoryId;
                     return _CategoryPill(
                       category: c,
-                      selected: c.id == _categoryId,
+                      selected: selected,
                       onTap: () => setState(() => _categoryId = c.id),
                     );
                   },
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            Text('Payment method', style: text.labelSmall),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                for (final m in PaymentMethod.values) ...[
-                  Expanded(
-                    child: _PmChoice(
-                      method: m,
-                      selected: m == _paymentMethod,
-                      onTap: () => setState(() => _paymentMethod = m),
-                    ),
-                  ),
-                  if (m != PaymentMethod.values.last) const SizedBox(width: 8),
-                ],
-              ],
             ),
             const SizedBox(height: 20),
 
@@ -305,62 +288,11 @@ class _AddExpenseSheetState extends ConsumerState<AddExpenseSheet> {
   }
 }
 
-class _PmChoice extends StatelessWidget {
-  final PaymentMethod method;
-  final bool selected;
-  final VoidCallback onTap;
-  const _PmChoice({
-    required this.method,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withAlpha(38)
-              : AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(
-            color: selected ? AppColors.primary : AppColors.borderSubtle,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              method.icon,
-              size: 18,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              method.label,
-              style: text.labelSmall?.copyWith(
-                fontSize: 10,
-                color: selected
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CategoryPill extends StatelessWidget {
   final Category category;
   final bool selected;
   final VoidCallback onTap;
+
   const _CategoryPill({
     required this.category,
     required this.selected,
