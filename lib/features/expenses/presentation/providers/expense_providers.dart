@@ -10,6 +10,8 @@ import '../../domain/repositories/expense_repository.dart';
 import '../../domain/usecases/add_expense.dart';
 import '../../domain/usecases/delete_expense.dart';
 import '../../domain/usecases/get_expenses.dart';
+import '../../domain/usecases/export_expenses_csv.dart';
+import '../../domain/usecases/import_expenses_csv.dart';
 import '../../domain/usecases/update_expense.dart';
 import 'expense_filter.dart';
 
@@ -112,3 +114,17 @@ final monthTotalProvider = Provider<int>((ref) {
       )
       .fold<int>(0, (sum, e) => sum + e.amount);
 });
+
+final exportExpensesCsvProvider = Provider(
+  (ref) => ExportExpensesCsv(
+    ref.watch(expenseRepositoryProvider),
+    ref.watch(categoryRepositoryProvider),
+  ),
+);
+
+final importExpensesCsvProvider = Provider(
+  (ref) => ImportExpensesCsv(
+    ref.watch(expenseRepositoryProvider),
+    ref.watch(categoryRepositoryProvider),
+  ),
+);

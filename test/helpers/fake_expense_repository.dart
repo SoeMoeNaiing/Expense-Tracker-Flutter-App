@@ -39,4 +39,15 @@ class FakeExpenseRepository implements ExpenseRepository {
     items.removeWhere((e) => e.id == id);
     return const Success(null);
   }
+
+  @override
+  Future<Result<List<Expense>>> addMany(List<Expense> drafts) async {
+    final saved = <Expense>[];
+    for (final d in drafts) {
+      final s = d.withId(items.length + 1);
+      items.add(s);
+      saved.add(s);
+    }
+    return Success(saved);
+  }
 }

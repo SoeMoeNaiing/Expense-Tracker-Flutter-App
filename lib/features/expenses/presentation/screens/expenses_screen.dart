@@ -15,6 +15,9 @@ import '../../../../core/widgets/mesh_background.dart';
 import '../../../categories/domain/entities/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../categories/presentation/screens/categories_screen.dart';
+import '../../../budgets/presentation/providers/budget_providers.dart';
+import '../../../budgets/presentation/screens/budgets_screen.dart';
+import '../../../budgets/presentation/widgets/overall_budget_bar.dart';
 import '../../../reports/presentation/screens/reports_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../providers/expense_filter.dart';
@@ -57,6 +60,19 @@ class ExpensesScreen extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: Text('Ledger', style: text.headlineLarge),
+                            ),
+                            IconButton(
+                              key: const Key('budgets_button'),
+                              icon: const Icon(
+                                Icons.savings_outlined,
+                                color: AppColors.textSecondary,
+                              ),
+                              tooltip: 'Budgets',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const BudgetsScreen(),
+                                ),
+                              ),
                             ),
                             IconButton(
                               key: const Key('reports_button'),

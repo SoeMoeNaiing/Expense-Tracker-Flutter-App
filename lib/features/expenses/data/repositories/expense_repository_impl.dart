@@ -82,4 +82,23 @@ class ExpenseRepositoryImpl implements ExpenseRepository {
     if (msg.contains('unique')) return 'Duplicate entry';
     return 'Database error';
   }
+
+  @override
+  Future<Result<List<Expense>>> addMany(List<Expense> drafts) async {
+    if (drafts.any((d) => d.id != null)) {
+      return const Failure('Cannot bulk-add expenses that already have ids');
+    }
+    if (drafts.isEmpty) return const Success([]);
+    try {
+      final models = drafts.map(ExpenseMapper.toModel).toList();
+      final ids = await _ds.insertMany(models);
+      return Success([
+        for (var i = 0; i < drafts.length; i++) drafts[i].withId(ids[i]),
+      ]);
+    } on DatabaseException catch (e) {
+      return Failure(_describeDbError(e), error: e);
+    } catch (e) {
+      return Failure('Unexpected error', error: e);
+    }
+  }
 }

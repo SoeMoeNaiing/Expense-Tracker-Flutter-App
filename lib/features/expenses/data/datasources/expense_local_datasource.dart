@@ -45,4 +45,15 @@ class ExpenseLocalDataSource {
     where: '${ExpenseCols.id} = ?',
     whereArgs: [id],
   );
+
+  /// Inserts all models atomically. Either all succeed or none do.
+  Future<List<int>> insertMany(List<ExpenseModel> models) async {
+    return await _db.transaction((txn) async {
+      final ids = <int>[];
+      for (final m in models) {
+        ids.add(await txn.insert(Tables.expenses, m.toMap()));
+      }
+      return ids;
+    });
+  }
 }

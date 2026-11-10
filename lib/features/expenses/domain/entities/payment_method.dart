@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// How an expense was paid. `dbValue` is what lives in the DB; never
-/// persist anything else.
 enum PaymentMethod {
   cash('cash', 'Cash', Icons.payments_outlined),
   card('card', 'Card', Icons.credit_card),
@@ -13,10 +11,14 @@ enum PaymentMethod {
   final IconData icon;
   const PaymentMethod(this.dbValue, this.label, this.icon);
 
-  static PaymentMethod fromDb(String? v) {
+  /// Lenient: unknown values fall back to cash. Use [tryParse] when you
+  /// need to distinguish "was cash" from "unknown".
+  static PaymentMethod fromDb(String? v) => tryParse(v) ?? cash;
+
+  static PaymentMethod? tryParse(String? v) {
     for (final m in values) {
       if (m.dbValue == v) return m;
     }
-    return cash;
+    return null;
   }
 }
